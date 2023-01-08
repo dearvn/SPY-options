@@ -5,8 +5,8 @@
 strategy("SPY 5M - No repaint v1.1 2023", overlay=true, pyramiding=1, default_qty_type = strategy.fixed, default_qty_value = 10 )
 
 
-stopPerCall = input(0.07, title='Stop Loss Call %') / 100 
-takePerCall = input(0.05, title='Take Profit Call %') / 100
+stopPerCall = input(0.2, title='Stop Loss Call %') / 100 
+takePerCall = input(0.2, title='Take Profit Call %') / 100
 
 stopPerPut = input(0.07, title='Stop Loss Put %') / 100 
 takePerPut = input(0.03, title='Take Profit Put %') / 100
@@ -30,6 +30,41 @@ open10 = request.security(symbol=syminfo.tickerid, timeframe="10", expression=op
 
 
 
+///////////////////////////////////////////
+
+
+o_h = math.max(open[3], open[2], open[1])
+o_l = math.min(open[3], open[2], open[1])
+o_o = open[1]
+o_c = open
+
+src(_src)  => 
+    Close  = (o_h + o_l + o_o + o_c)/4
+    Open  = (o_o + o_c) / 2
+    High   = math.max(o_h, math.max(Open, Close))
+    Low    = math.min(o_l,  math.min(Open, Close))
+    HL2    = math.avg(High, Low) 
+    HLC3   = math.avg(High, Low, Close) 
+    OHLC4  = math.avg(Open, High, Low, Close)
+    Price  = _src == 'close' ? Close : _src == 'open' ? Open : _src == 'high' ? High : _src == 'low' ? Low : _src == 'hl2' ? HL2 : _src == 'hlc3' ? HLC3 : OHLC4  
+    Source = math.round(Price / syminfo.mintick) * syminfo.mintick  // PineCoders method for aligning Pine prices with chart instrument prices
+
+// === PLOTTING ===
+hk_c = src('close')
+hk_o = src('open')
+hk_h = src('high')
+hk_l = src('low')
+bar_up  = hk_c < hk_o
+bar_down  = hk_c >= hk_o
+
+ochl = src('olch4')
+
+barColor   = o_c < o_o ? color.red : color.purple  // series color
+bar_up_oc = o_c > o_o
+bar_down_oc = o_c <= o_o
+//plotcandle(o_o, o_h, o_l, o_c, title = "", color = barColor, wickcolor = barColor, bordercolor = barColor)  // plot bars
+
+
 
 
 
@@ -51,16 +86,45 @@ lower3_1= basis3 - (0.236*dev3)
 //lower3_5= basis3 - (0.764*dev3)
 lower3_6= basis3 - (1*dev3)
 
-plot(basis3, color=color.blue, linewidth=2, title="1")
+//plot(basis3, color=color.blue, linewidth=2, title="1")
 
 uper_10 = (upper3_6+basis3)/2
 plot(uper_10, color=color.white, linewidth=2, title="0.764")
 
 lower_10 = (lower3_6+basis3)/2
-plot(lower_10, color=color.green, linewidth=2, title="0.764")
+plot(lower_10, color=color.blue, linewidth=2, title="0.764")
+
+avg_wma_21 = ta.wma(avg, 21)
+plot(avg_wma_21, color=color.yellow, linewidth=4, title="0.764")
 
 
-plot(ta.wma(avg, 21), color=color.orange, linewidth=4, title="0.764")
+
+
+//////////////////////////////////////////
+var bool is_cross_up_avg = false
+var bool is_cross_down_avg = false
+
+cross_up_avg = ta.crossover(avg, avg_wma_21)
+cross_down_avg = ta.crossunder(avg, avg_wma_21)
+
+if cross_up_avg
+    if uper_10[1] < uper_10
+        is_cross_up_avg := true
+    is_cross_down_avg := false
+    
+if cross_down_avg
+    is_cross_up_avg := false
+    is_cross_down_avg := true
+
+//if uper_10[1] > uper_10
+//    is_cross_up_avg := false
+
+plotshape(cross_up_avg and uper_10[1] < uper_10 ? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.yellow, size=size.normal)
+//plotshape(cross_down_avg ? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.white, size=size.normal)
+
+is_up_strong = is_cross_up_avg and (bar_up_oc or bar_up) and avg_wma_21[1] < avg_wma_21
+
+plotshape(is_up_strong ? low : na, title="Avg", style=shape.xcross, location=location.absolute, color=color.white, size=size.normal)
 
 
 //////////////////////////////////////////
@@ -78,7 +142,7 @@ lower_3= basis - (0.5*dev)
 lower_4= basis - (0.618*dev)
 lower_5= basis - (0.764*dev)
 lower_6= basis - (1*dev)
-p6 = plot(upper_6, color=color.red, linewidth=2, title="1")
+//p6 = plot(upper_6, color=color.red, linewidth=2, title="1")
 
 //p5 = plot(upper_5, color=color.white, linewidth=1, title="0.764")
 
@@ -91,7 +155,7 @@ p6 = plot(upper_6, color=color.red, linewidth=2, title="1")
 
 //p1 = plot(upper_1, color=color.white, linewidth=1, title="0.236")
 
-plot(basis, color=color.yellow, linewidth=2)
+//plot(basis, color=color.yellow, linewidth=2)
 
 
 //p13 = plot(lower_1, color=color.white, linewidth=1, title="0.236")
@@ -99,7 +163,7 @@ plot(basis, color=color.yellow, linewidth=2)
 //p15 = plot(lower_3, color=color.white, linewidth=1, title="0.5")
 //p16 = plot(lower_4, color=color.white, linewidth=1, title="0.618")
 //p17 = plot(lower_5, color=color.white, linewidth=1, title="0.764")
-p18 = plot(lower_6, color=color.blue, linewidth=2, title="1")
+//p18 = plot(lower_6, color=color.blue, linewidth=2, title="1")
 
 
 
@@ -182,39 +246,6 @@ KJ=math.avg(ta.lowest(avg, KJlength), ta.highest(avg, KJlength))
 CS=avg
 SB=math.avg(ta.lowest(avg, SBlength), ta.highest(avg, SBlength))
 SA=math.avg(TK,KJ)
-
-
-///////////////////////////////////////////
-
-
-o_h = math.max(open[3], open[2], open[1])
-o_l = math.min(open[3], open[2], open[1])
-o_o = open[1]
-o_c = open
-
-src(_src)  => 
-    Close  = (o_h + o_l + o_o + o_c)/4
-    Open  = (o_o + o_c) / 2
-    High   = math.max(o_h, math.max(Open, Close))
-    Low    = math.min(o_l,  math.min(Open, Close))
-    HL2    = math.avg(High, Low) 
-    HLC3   = math.avg(High, Low, Close) 
-    OHLC4  = math.avg(Open, High, Low, Close)
-    Price  = _src == 'close' ? Close : _src == 'open' ? Open : _src == 'high' ? High : _src == 'low' ? Low : _src == 'hl2' ? HL2 : _src == 'hlc3' ? HLC3 : OHLC4  
-    Source = math.round(Price / syminfo.mintick) * syminfo.mintick  // PineCoders method for aligning Pine prices with chart instrument prices
-
-// === PLOTTING ===
-hk_c = src('close')
-hk_o = src('open')
-hk_h = src('high')
-hk_l = src('low')
-bar_up  = hk_c < hk_o
-bar_down  = hk_c >= hk_o
-
-ochl = src('olch4')
-
-barColor   = o_c < o_o ? color.red : color.purple  // series color
-plotcandle(o_o, o_h, o_l, o_c, title = "", color = barColor, wickcolor = barColor, bordercolor = barColor)  // plot bars
 
 
 
@@ -530,6 +561,8 @@ tiny_change = math.abs(math.abs(open[1] - open[0]) - avg_change)
 end_up_2 = ta.crossover(open, running_ph) and open[2] < open[1] and open[1] < open and tiny_change > 0.1
 //plotshape(end_up_2? low : na, title="Logic1", style=shape.triangledown, location=location.absolute, color=color.white, size=size.normal)
 
+end_up_1 = open[4] < open[3] and open[3] < open[2] and open[2] > open[1] and open[1] > open
+
 is_up = open > avg
 
 start_up_1 = not is_up[10] and not is_up[9] and not is_up[8] and not is_up[7] and not is_up[6] and not is_up[5] and not is_up[4] and not is_up[3] and not is_up[2] and not is_up[1] and is_up
@@ -687,9 +720,13 @@ if ta.crossunder(open, uper_10)or ta.crossunder(avg, uper_10) //or ta.crossunder
     is_up10m := false
 
 //plotshape(is_up10m ?  low: na, title="No Short", style=shape.xcross, location=location.absolute, color=color.green, size=size.tiny)
+longCondition14 = is_up_strong and close[1] > avg and close[1] > avg_wma_21 and high[1] > running_ph[1] and open > open[1] and close[1] > open[1]
 
+closeLong3 = ta.crossunder(open, wma_3m_3) and not (hist[1] < hist)
+if end_up_2 or end_up_2[1] or end_up_1 or end_up_1[1]
+    longCondition14 := false
 
-longCondition = longCondition9 or longCondition4 or longCondition5 or longCondition6 or longCondition13//or longCondition10
+longCondition = longCondition14 or longCondition13 or longCondition4 //or longCondition4 //or longCondition5 //or longCondition6 or longCondition13 //or longCondition14
 
 if not bar_up or macd_12_26[1] > macd_12_26 or rsiMA[1] > rsiMA
     longCondition := false
@@ -707,7 +744,6 @@ if ta.crossunder(wma_3m_3, wma_5m_5) or hist[1] > hist or not bar_up//or continu
     longCondition := false
 
 
-end_up_1 = open[4] < open[3] and open[3] < open[2] and open[2] > open[1] and open[1] > open
 
 
 hr = hour(time_close, 'UTC-8')
@@ -824,7 +860,7 @@ if weak_put_uper_2 or weak_put_uper_2[1]
 
     
 
-shortCondition = shortCondition1 or shortCondition2 or shortCondition3 or shortCondition4 or shortCondition5 or shortCondition6 //or shortCondition7
+shortCondition = shortCondition3 or shortCondition4 or shortCondition5 or shortCondition6 or shortCondition7
 
 if bar_up or macd_12_26[1] < macd_12_26 or rsiMA[1] < rsiMA
     shortCondition := false
@@ -860,7 +896,6 @@ closeLong1 = end_up_1
 
 closeLong2 = end_up_2
 
-closeLong3 = ta.crossunder(open, wma_3m_3) and not (hist[1] < hist)
 if open > avg and avg < basis
     closeLong3 := false
 
@@ -875,10 +910,10 @@ if open > avg and avg < basis
 closeLong5 = wma_8m_8[1] > wma_8m_8 and open[2] >= open[1] and open[1] >= open
 
 
-//plotshape(closeLong1 ? high : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.white, size=size.normal)
-//plotshape(closeLong2 ? high : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.orange, size=size.normal)
-//plotshape(closeLong3 ? high : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.yellow, size=size.normal)
-//plotshape(closeLong4 ? high : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.blue, size=size.normal)
+plotshape(closeLong1 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.white, size=size.normal)
+plotshape(closeLong2 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.orange, size=size.normal)
+plotshape(closeLong3 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.yellow, size=size.normal)
+plotshape(closeLong4 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.blue, size=size.normal)
 
 if is_up10m
     closeLong1 := false
@@ -888,6 +923,13 @@ if is_up10m
     if call_price != 0.0
         longStop := call_price * (1 - 0.07/100)
         longTake := call_price * (1 + 0.2/100)
+
+if is_up_strong
+    closeLong1 := false
+    closeLong2 := false
+    closeLong3 := false
+    closeLong4 := false
+
 
 closelong = closeLong1 or closeLong2 or closeLong3 or closeLong4 //or closeLong5
 
@@ -963,8 +1005,8 @@ if(strategy.position_size < 0)
     strategy.close(id="put", when = closeshort)
 
 
-if(strategy.position_size > 0)
-    strategy.exit(id='call', limit=longTake,stop = longStop)
+//if(strategy.position_size > 0)
+//    strategy.exit(id='call', limit=longTake,stop = longStop)
     //call_price := 0.0
 
 if(strategy.position_size < 0)

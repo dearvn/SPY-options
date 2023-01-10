@@ -2,13 +2,13 @@
 // © binancash
 
 //@version=5
-strategy("SPY-5M - V1.0", overlay=true, pyramiding=1, default_qty_type = strategy.fixed, default_qty_value = 1 )
+strategy("SPY 5M - No repaint v1.1 2023", overlay=true, pyramiding=1, default_qty_type = strategy.fixed, default_qty_value = 1 )
 
 
-stopPerCall = input(0.2, title='Stop Loss Call %') / 100 
-takePerCall = input(0.2, title='Take Profit Call %') / 100
+stopPerCall = input(0.9, title='Stop Loss Call %') / 100 
+takePerCall = input(0.03, title='Take Profit Call %') / 100
 
-stopPerPut = input(0.07, title='Stop Loss Put %') / 100 
+stopPerPut = input(0.9, title='Stop Loss Put %') / 100 
 takePerPut = input(0.03, title='Take Profit Put %') / 100
 
 longStop = strategy.position_avg_price * (1 - stopPerCall)
@@ -106,25 +106,39 @@ var bool is_cross_down_avg = false
 
 cross_up_avg = ta.crossover(avg, avg_wma_21)
 cross_down_avg = ta.crossunder(avg, avg_wma_21)
+var bool trend_up_avg = false
+var bool is_up_avg = false
+var bool is_down_avg = false
 
 if cross_up_avg
+    is_up_avg := true
+    is_down_avg := false
+
     if uper_10[1] < uper_10
         is_cross_up_avg := true
     is_cross_down_avg := false
     
 if cross_down_avg
+    is_up_avg := false
+    is_down_avg := true
+    trend_up_avg := false
     is_cross_up_avg := false
     is_cross_down_avg := true
+
+if ta.crossunder(uper_10, avg_wma_21)
+    is_up_avg := false
+if ta.crossover(lower_10, avg_wma_21)
+    is_down_avg := false
 
 //if uper_10[1] > uper_10
 //    is_cross_up_avg := false
 
 plotshape(cross_up_avg and uper_10[1] < uper_10 ? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.yellow, size=size.normal)
-//plotshape(cross_down_avg ? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.white, size=size.normal)
+plotshape(cross_down_avg ? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.white, size=size.normal)
 
 is_up_strong = is_cross_up_avg and (bar_up_oc or bar_up) and avg_wma_21[1] < avg_wma_21
 
-plotshape(is_up_strong ? low : na, title="Avg", style=shape.xcross, location=location.absolute, color=color.white, size=size.normal)
+//plotshape(trend_up_avg ? low : na, title="Avg", style=shape.xcross, location=location.absolute, color=color.white, size=size.normal)
 
 
 //////////////////////////////////////////
@@ -227,7 +241,10 @@ plot(running_pl, title = 'S',  style = plot.style_circles, linewidth = 2,color=c
 
 avg_change = (math.abs(open[10] - open[9]) + math.abs(open[9] - open[8]) + math.abs(open[8] - open[7]) + math.abs(open[7] - open[6]) + math.abs(open[6] - open[5]) + math.abs(open[5] - open[4]) + math.abs(open[4] - open[3]) + math.abs(open[3] - open[2]) + math.abs(open[2] - open[1]) + math.abs(open[1] - open[0]))/10
 
+up_resistance = is_up_avg and open > running_ph
+down_resistance = is_down_avg and open < running_ph and avg_wma_21[1] > avg_wma_21
 
+plotshape(down_resistance? low : na, title="Avg", style=shape.diamond, location=location.absolute, color=color.white, size=size.tiny)
 
 
 plot(avg, color = color.gray, linewidth = 4)
@@ -722,13 +739,11 @@ if ta.crossunder(open, uper_10)or ta.crossunder(avg, uper_10) //or ta.crossunder
 //plotshape(is_up10m ?  low: na, title="No Short", style=shape.xcross, location=location.absolute, color=color.green, size=size.tiny)
 longCondition14 = is_up_strong and close[1] > avg and close[1] > avg_wma_21 and high[1] > running_ph[1] and open > open[1] and close[1] > open[1]
 
-longCondition15 = ta.crossover(close[1], avg_wma_21) and ta.crossover(close[1], uper_10) //and (close[1] - open[1]) > 10
-
 closeLong3 = ta.crossunder(open, wma_3m_3) and not (hist[1] < hist)
 if end_up_2 or end_up_2[1] or end_up_1 or end_up_1[1]
     longCondition14 := false
 
-longCondition = longCondition14 or longCondition13 or longCondition4//or longCondition4 //or longCondition5 //or longCondition6 or longCondition13 //or longCondition14
+longCondition = longCondition14 or longCondition13 or longCondition4 //or longCondition4 //or longCondition5 //or longCondition6 or longCondition13 //or longCondition14
 
 if not bar_up or macd_12_26[1] > macd_12_26 or rsiMA[1] > rsiMA
     longCondition := false
@@ -766,16 +781,16 @@ closeShort2 = wma3 < wma11 and open[1] > wma3[1] and open > wma11 and not (wma_3
 if closeShort2
     longCondition10 := false
 
-//if macd_12_26[1] > macd_12_26
-//    longCondition10 := false
+if macd_12_26[1] > macd_12_26
+    longCondition10 := false
 
 longCondition :=  longCondition10 or longCondition
 
-if lower_10[1] > lower_10 and uper_10[1] > uper_10
+if down_resistance
     longCondition := false
+
 //plotshape(is_longCondition11  ? low : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.blue, size=size.normal)
 
-longCondition :=  longCondition15 or longCondition
 
 var float call_price = 0.0
 var float put_price = 0.0
@@ -827,7 +842,7 @@ shortCondition3 = bar_up[10] and bar_up[9] and bar_up[8] and bar_up[7] and bar_u
 shortCondition4 = bar_up[3] and bar_up[2] and not bar_up[1] and not bar_up and ta.crossunder(hk_l, wma_5m_5)
 weak_put_uper = avg > upper_1 and upper_1[1] < upper_1 and ta.crossunder(open, avg)
 //plotshape(weak_put_uper ? high : na, title="Logic1", style=shape.xcross, location=location.absolute, color=color.white, size=size.huge)
-if weak_put_uper or weak_put_uper[1]
+if weak_put_uper or weak_put_uper[1] 
     shortCondition4 := false
 
 shortCondition5 = start_short_2
@@ -864,17 +879,15 @@ if weak_put_uper_2 or weak_put_uper_2[1]
     shortCondition4 := false
 
     
-shortCondition8 = ta.crossunder(close[1], avg_wma_21) and ta.crossunder(close[1], lower_10) //and (close[1] - open[1]) > 10
 
+shortCondition = shortCondition7 //or shortCondition4 or shortCondition5 or shortCondition6 or shortCondition7
+//if not down_resistance
+//    shortCondition := false
 
-shortCondition = shortCondition3 or shortCondition4 or shortCondition5 or shortCondition6 or shortCondition7 or shortCondition8
+//if math.abs(uper_10 - uper_10[1]) < 0.5
+//    shortCondition := false
 
-if math.abs(uper_10 - uper_10[1]) < 0.5 or lower_10[1] < lower_10 and uper_10[1] < uper_10
-    longCondition := false
-
-    shortCondition := false
-
-if bar_up or macd_12_26[1] < macd_12_26 or rsiMA[1] < rsiMA
+if bar_up or macd_12_26[1] < macd_12_26 or rsiMA[1] < rsiMA or up_resistance
     shortCondition := false
 
 //shortCondition := shortCondition or shortCondition8
@@ -922,10 +935,10 @@ if open > avg and avg < basis
 closeLong5 = wma_8m_8[1] > wma_8m_8 and open[2] >= open[1] and open[1] >= open
 
 
-plotshape(closeLong1 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.white, size=size.normal)
-plotshape(closeLong2 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.orange, size=size.normal)
-plotshape(closeLong3 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.yellow, size=size.normal)
-plotshape(closeLong4 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.blue, size=size.normal)
+//plotshape(closeLong1 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.white, size=size.normal)
+//plotshape(closeLong2 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.orange, size=size.normal)
+//plotshape(closeLong3 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.yellow, size=size.normal)
+//plotshape(closeLong4 ? high : na, title="Logic1", style=shape.circle, location=location.absolute, color=color.blue, size=size.normal)
 
 if is_up10m
     closeLong1 := false
@@ -999,7 +1012,7 @@ if is_cross_down_basis and is_cross_down_lower_1 and open < lower_1 and avg[1] >
 
 closeshort = closeShort1 or closeShort2 or closeShort3 //or closeShort4
 
-if open < open[1]
+if open < open[1] //or down_resistance and avg_wma_21[1] > avg_wma_21
     closeshort := false
 
     //if put_price != 0.0

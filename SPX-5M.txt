@@ -2,7 +2,7 @@
 // © binancash
 
 //@version=5
-strategy("SPX 5M - No repaint V1.1", overlay=true, pyramiding=1, default_qty_type = strategy.fixed, default_qty_value = 1 )
+strategy("SPX 5M - No repaint V1.1", overlay=true, pyramiding=1, default_qty_type = strategy.fixed, default_qty_value = 1, slippage=3 )
 
 
 stopPerCall = input(0.9, title='Stop Loss Call %') / 100 
